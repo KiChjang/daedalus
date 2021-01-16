@@ -32,14 +32,14 @@ impl Client {
         Ok(self)
     }
 
-    pub fn dispute(&mut self, tx: Transaction) -> Result<&mut Self, Error> {
+    pub fn dispute(&mut self, tx: Transaction) -> &mut Self {
         if matches!(tx.ty, TransactionType::Dispute) {
             // Disputing a dispute results in only one underlying dispute, so we can ignore
-            return Ok(self);
+            return self;
         }
 
         self.disputed_tx.insert(tx.id, tx);
-        Ok(self)
+        self
     }
 
     pub fn resolve(&mut self, tx_id: u32) -> &mut Self {
@@ -82,7 +82,7 @@ impl Client {
                     None => return Ok(self),
                 };
 
-                self.dispute(disputed_tx)
+                Ok(self.dispute(disputed_tx))
             }
             TransactionType::Resolve => Ok(self.resolve(tx.id)),
             TransactionType::Chargeback => Ok(self.chargeback(tx.id)),
