@@ -87,6 +87,8 @@ impl Client {
                     None => return Ok(self),
                 };
 
+                debug_assert_eq!(disputed_tx.client_id, tx.client_id);
+
                 Ok(self.dispute(disputed_tx))
             }
             TransactionType::Resolve => Ok(self.resolve(tx.id)),

@@ -42,7 +42,7 @@ fn process_tx(tx: Transaction, last_tx_id: &mut u32, clients: &mut HashMap<u16, 
     let client = clients.entry(tx.client_id).or_default();
 
     let disputed_tx = if matches!(tx.ty, TransactionType::Dispute) {
-        if tx.id > *last_tx_id {
+        if tx_id > *last_tx_id {
             eprintln!(
                 "Error encountered while processing TxID {}: Disputing a future transaction",
                 tx_id,
@@ -57,6 +57,8 @@ fn process_tx(tx: Transaction, last_tx_id: &mut u32, clients: &mut HashMap<u16, 
 
     if matches!(tx.ty, TransactionType::Deposit | TransactionType::Withdrawal) {
         *last_tx_id += 1;
+
+        debug_assert_eq!(*last_tx_id, tx_id);
     }
 
     if let Err(e) = client.process_tx(tx, disputed_tx) {
