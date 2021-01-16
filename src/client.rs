@@ -58,14 +58,16 @@ impl Client {
     fn chargeback(&mut self, tx_id: u32) -> &mut Self {
         if let Some(tx) = self.disputed_tx.remove(&tx_id) {
             match tx.ty {
-                TransactionType::Deposit | TransactionType::Resolve => {
+                TransactionType::Deposit => {
                     self.total -= tx.amount;
                 }
-                TransactionType::Withdrawal | TransactionType::Chargeback => {
+                TransactionType::Withdrawal => {
                     self.total += tx.amount;
                 }
-                // Impossible to hit since we've already checked whether the tx type was dispute
-                TransactionType::Dispute => unreachable!(),
+                // Impossible to hit since we should have prevented such kinds of transaction types to be added
+                TransactionType::Dispute
+                | TransactionType::Resolve
+                | TransactionType::Chargeback => unreachable!(),
             }
             self.locked = true;
         }
@@ -88,6 +90,10 @@ impl Client {
                 };
 
                 debug_assert_eq!(disputed_tx.client_id, tx.client_id);
+                debug_assert!(matches!(
+                    disputed_tx.ty,
+                    TransactionType::Deposit | TransactionType::Withdrawal
+                ));
 
                 Ok(self.dispute(disputed_tx))
             }
@@ -116,13 +122,13 @@ mod tests {
     #[test]
     fn test_deposit_and_withdrawal() {
         let mut client = Client::default();
-        
+
         assert!(client.deposit(1.0).is_ok());
         assert!(client.withdraw(0.5).is_ok());
         assert!(client.withdraw(0.5).is_ok());
         assert_eq!(client.withdraw(0.5), Err(Error::InsufficientBalance));
     }
-    
+
     #[test]
     fn test_should_disallow_withdraw_when_avail_funds_is_insufficient() {
         let mut client = Client::default();
@@ -133,15 +139,13 @@ mod tests {
             amount: 1.0,
         };
 
-        client.process_tx(tx.clone(), None)
-            .unwrap()
-            .dispute(tx);
+        client.process_tx(tx.clone(), None).unwrap().dispute(tx);
 
         assert_eq!(client.withdraw(1.0), Err(Error::InsufficientBalance));
         assert_eq!(client.total, 1.0);
         assert_eq!(client.get_held(), 1.0);
     }
-    
+
     #[test]
     fn test_should_allow_withdraw_when_dispute_is_resolved() {
         let mut client = Client::default();
@@ -152,7 +156,8 @@ mod tests {
             amount: 1.0,
         };
 
-        client.process_tx(tx.clone(), None)
+        client
+            .process_tx(tx.clone(), None)
             .unwrap()
             .dispute(tx)
             .resolve(1);
@@ -172,7 +177,8 @@ mod tests {
             amount: 1.0,
         };
 
-        client.process_tx(tx.clone(), None)
+        client
+            .process_tx(tx.clone(), None)
             .unwrap()
             .deposit(2.0)
             .unwrap()

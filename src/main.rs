@@ -37,7 +37,12 @@ fn main() -> csv::Result<()> {
     Ok(())
 }
 
-fn process_tx(tx: Transaction, last_tx_id: &mut u32, clients: &mut HashMap<u16, Client>, txs_path: &Path) -> csv::Result<()> {
+fn process_tx(
+    tx: Transaction,
+    last_tx_id: &mut u32,
+    clients: &mut HashMap<u16, Client>,
+    txs_path: &Path,
+) -> csv::Result<()> {
     let tx_id = tx.id;
     let client = clients.entry(tx.client_id).or_default();
 
@@ -55,7 +60,10 @@ fn process_tx(tx: Transaction, last_tx_id: &mut u32, clients: &mut HashMap<u16, 
         None
     };
 
-    if matches!(tx.ty, TransactionType::Deposit | TransactionType::Withdrawal) {
+    if matches!(
+        tx.ty,
+        TransactionType::Deposit | TransactionType::Withdrawal
+    ) {
         *last_tx_id += 1;
 
         debug_assert_eq!(*last_tx_id, tx_id);
@@ -73,7 +81,14 @@ fn locate_tx<A: AsRef<Path>>(path: A, tx_id: u32) -> csv::Result<Option<Transact
 
     for res in rdr.deserialize() {
         let tx: Transaction = res?;
-        if tx.id == tx_id {
+
+        // Ensure that we don't dispute a dispute, chargeback or a resolved transaction
+        if tx.id == tx_id
+            && matches!(
+                tx.ty,
+                TransactionType::Deposit | TransactionType::Withdrawal
+            )
+        {
             return Ok(Some(tx));
         }
     }
