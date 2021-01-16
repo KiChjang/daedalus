@@ -49,7 +49,7 @@ fn process_tx(
     let disputed_tx = if matches!(tx.ty, TransactionType::Dispute) {
         if tx_id > *last_tx_id {
             eprintln!(
-                "Error encountered while processing TxID {}: Disputing a future transaction",
+                "Error encountered while disputing TxID {}: transaction has not yet happened",
                 tx_id,
             );
             return Ok(());
