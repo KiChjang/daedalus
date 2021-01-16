@@ -40,11 +40,6 @@ impl Client {
     }
 
     fn dispute(&mut self, tx: Transaction) -> &mut Self {
-        if matches!(tx.ty, TransactionType::Dispute) {
-            // Disputing a dispute results in only one underlying dispute, so we can ignore
-            return self;
-        }
-
         self.disputed_tx.insert(tx.id, tx);
         self
     }
