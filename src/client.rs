@@ -29,13 +29,13 @@ impl Client {
             return Err(Error::AccountLocked);
         }
 
-        let new_bal = self.total - amount;
+        let new_avail = self.total - self.get_held() - amount;
 
-        if new_bal < 0.0 {
+        if new_avail < 0.0 {
             return Err(Error::InsufficientBalance);
         }
 
-        self.total = new_bal;
+        self.total -= amount;
         Ok(self)
     }
 
