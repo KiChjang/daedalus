@@ -185,4 +185,63 @@ mod tests {
         assert_eq!(client.total, 2.0);
         assert_eq!(client.get_held(), 0.0);
     }
+
+    #[test]
+    fn test_should_allow_withdrawal_under_dispute_if_avail_funds_exist() {
+        let mut client = Client::default();
+        let tx = Transaction {
+            ty: TransactionType::Deposit,
+            client_id: 0,
+            id: 1,
+            amount: 1.0,
+        };
+
+        client
+            .process_tx(tx.clone(), None)
+            .unwrap()
+            .deposit(2.0)
+            .unwrap()
+            .dispute(tx);
+
+        assert_eq!(client.total, 3.0);
+        assert_eq!(client.get_held(), 1.0);
+
+        assert!(client.withdraw(2.0).is_ok());
+        assert_eq!(client.total, 1.0);
+        assert_eq!(client.get_held(), 1.0);
+    }
+
+    #[test]
+    fn test_dispute_withdrawal() {
+        let mut client = Client::default();
+        let tx = Transaction {
+            ty: TransactionType::Withdrawal,
+            client_id: 0,
+            id: 2,
+            amount: 1.0,
+        };
+
+        client
+            .deposit(3.0)
+            .unwrap()
+            .process_tx(tx.clone(), None)
+            .unwrap()
+            .dispute(tx);
+
+        assert_eq!(client.total, 2.0);
+        assert_eq!(client.get_held(), 1.0);
+
+        assert_eq!(client.withdraw(2.0), Err(Error::InsufficientBalance));
+
+        client.resolve(1);
+
+        assert_eq!(client.total, 2.0);
+        assert_eq!(client.get_held(), 1.0);
+
+        client.resolve(2);
+
+        assert_eq!(client.total, 2.0);
+        assert_eq!(client.get_held(), 0.0);
+        assert!(client.withdraw(2.0).is_ok());
+    }
 }
