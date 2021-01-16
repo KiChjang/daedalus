@@ -16,12 +16,20 @@ impl Client {
         self.disputed_tx.values().map(|tx| tx.amount).sum()
     }
 
-    pub fn deposit(&mut self, amount: f32) -> &mut Self {
+    fn deposit(&mut self, amount: f32) -> Result<&mut Self, Error> {
+        if self.locked {
+            return Err(Error::AccountLocked);
+        }
+
         self.total += amount;
-        self
+        Ok(self)
     }
 
-    pub fn withdraw(&mut self, amount: f32) -> Result<&mut Self, Error> {
+    fn withdraw(&mut self, amount: f32) -> Result<&mut Self, Error> {
+        if self.locked {
+            return Err(Error::AccountLocked);
+        }
+
         let new_bal = self.total - amount;
 
         if new_bal < 0.0 {
@@ -32,7 +40,7 @@ impl Client {
         Ok(self)
     }
 
-    pub fn dispute(&mut self, tx: Transaction) -> &mut Self {
+    fn dispute(&mut self, tx: Transaction) -> &mut Self {
         if matches!(tx.ty, TransactionType::Dispute) {
             // Disputing a dispute results in only one underlying dispute, so we can ignore
             return self;
@@ -42,13 +50,13 @@ impl Client {
         self
     }
 
-    pub fn resolve(&mut self, tx_id: u32) -> &mut Self {
+    fn resolve(&mut self, tx_id: u32) -> &mut Self {
         self.disputed_tx.remove(&tx_id);
 
         self
     }
 
-    pub fn chargeback(&mut self, tx_id: u32) -> &mut Self {
+    fn chargeback(&mut self, tx_id: u32) -> &mut Self {
         if let Some(tx) = self.disputed_tx.remove(&tx_id) {
             match tx.ty {
                 TransactionType::Deposit | TransactionType::Resolve => {
@@ -74,7 +82,7 @@ impl Client {
         self.nonce += 1;
 
         match tx.ty {
-            TransactionType::Deposit => Ok(self.deposit(tx.amount)),
+            TransactionType::Deposit => self.deposit(tx.amount),
             TransactionType::Withdrawal => self.withdraw(tx.amount),
             TransactionType::Dispute => {
                 let disputed_tx = match disputed_tx {

@@ -3,6 +3,7 @@ use std::fmt::{self, Display, Formatter};
 #[derive(Debug)]
 pub enum Error {
     InsufficientBalance,
+    AccountLocked,
 }
 
 impl Display for Error {
@@ -12,6 +13,7 @@ impl Display for Error {
             "{}",
             match self {
                 Error::InsufficientBalance => "Insufficient balance for withdrawal",
+                Error::AccountLocked => "Account is frozen",
             }
         )
     }
