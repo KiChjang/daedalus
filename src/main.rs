@@ -42,11 +42,11 @@ fn main() -> csv::Result<()> {
     Ok(())
 }
 
-fn process_tx(
+fn process_tx<A: AsRef<Path>>(
     tx: Transaction,
     last_tx_id: &mut u32,
     clients: &mut HashMap<u16, Client>,
-    txs_path: &Path,
+    txs_path: A,
 ) -> csv::Result<()> {
     let tx_id = tx.id;
     let client = clients.entry(tx.client_id).or_default();
