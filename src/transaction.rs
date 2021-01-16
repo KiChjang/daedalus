@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize)]
 pub struct Transaction {
     #[serde(rename = "type")]
     pub(crate) ty: TransactionType,
@@ -11,7 +11,7 @@ pub struct Transaction {
     pub(crate) amount: f32,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize)]
 pub enum TransactionType {
     #[serde(alias = "deposit")]
     Deposit,

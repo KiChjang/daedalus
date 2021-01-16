@@ -3,7 +3,7 @@ use std::{collections::HashMap, default::Default};
 use crate::error::Error;
 use crate::transaction::{Transaction, TransactionType};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Client {
     pub(crate) total: f32,
     pub(crate) locked: bool,
@@ -104,5 +104,84 @@ impl Default for Client {
             locked: false,
             disputed_tx: HashMap::new(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::error::*;
+    use crate::transaction::*;
+
+    #[test]
+    fn test_deposit_and_withdrawal() {
+        let mut client = Client::default();
+        
+        assert!(client.deposit(1.0).is_ok());
+        assert!(client.withdraw(0.5).is_ok());
+        assert!(client.withdraw(0.5).is_ok());
+        assert_eq!(client.withdraw(0.5), Err(Error::InsufficientBalance));
+    }
+    
+    #[test]
+    fn test_should_disallow_withdraw_when_avail_funds_is_insufficient() {
+        let mut client = Client::default();
+        let tx = Transaction {
+            ty: TransactionType::Deposit,
+            client_id: 0,
+            id: 1,
+            amount: 1.0,
+        };
+
+        client.process_tx(tx.clone(), None)
+            .unwrap()
+            .dispute(tx);
+
+        assert_eq!(client.withdraw(1.0), Err(Error::InsufficientBalance));
+        assert_eq!(client.total, 1.0);
+        assert_eq!(client.get_held(), 1.0);
+    }
+    
+    #[test]
+    fn test_should_allow_withdraw_when_dispute_is_resolved() {
+        let mut client = Client::default();
+        let tx = Transaction {
+            ty: TransactionType::Deposit,
+            client_id: 0,
+            id: 1,
+            amount: 1.0,
+        };
+
+        client.process_tx(tx.clone(), None)
+            .unwrap()
+            .dispute(tx)
+            .resolve(1);
+
+        assert!(client.withdraw(1.0).is_ok());
+        assert_eq!(client.total, 0.0);
+        assert_eq!(client.get_held(), 0.0);
+    }
+
+    #[test]
+    fn test_should_disallow_withdrawal_after_chargeback() {
+        let mut client = Client::default();
+        let tx = Transaction {
+            ty: TransactionType::Deposit,
+            client_id: 0,
+            id: 1,
+            amount: 1.0,
+        };
+
+        client.process_tx(tx.clone(), None)
+            .unwrap()
+            .deposit(2.0)
+            .unwrap()
+            .dispute(tx)
+            .chargeback(1);
+
+        assert_eq!(client.withdraw(1.0), Err(Error::AccountLocked));
+        assert_eq!(client.withdraw(5.0), Err(Error::AccountLocked));
+        assert_eq!(client.total, 2.0);
+        assert_eq!(client.get_held(), 0.0);
     }
 }
