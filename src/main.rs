@@ -25,10 +25,11 @@ fn main() -> csv::Result<()> {
     let mut rdr = Reader::from_path(opt.input.clone())?;
 
     let mut clients: HashMap<u16, Client> = HashMap::new();
+    let mut last_tx_id = 0;
 
     for res in rdr.deserialize() {
         let tx: Transaction = res?;
-        process_tx(tx, &mut clients, opt.input.as_path())?;
+        process_tx(tx, &mut last_tx_id, &mut clients, opt.input.as_path())?;
     }
 
     write_client_statements(io::stdout(), clients)?;
@@ -36,12 +37,12 @@ fn main() -> csv::Result<()> {
     Ok(())
 }
 
-fn process_tx(tx: Transaction, clients: &mut HashMap<u16, Client>, txs_path: &Path) -> csv::Result<()> {
+fn process_tx(tx: Transaction, last_tx_id: &mut u32, clients: &mut HashMap<u16, Client>, txs_path: &Path) -> csv::Result<()> {
     let tx_id = tx.id;
     let client = clients.entry(tx.client_id).or_default();
 
     let disputed_tx = if matches!(tx.ty, TransactionType::Dispute) {
-        if tx.id > client.nonce {
+        if tx.id > *last_tx_id {
             eprintln!(
                 "Error encountered while processing TxID {}: Disputing a future transaction",
                 tx_id,
@@ -53,6 +54,10 @@ fn process_tx(tx: Transaction, clients: &mut HashMap<u16, Client>, txs_path: &Pa
     } else {
         None
     };
+
+    if matches!(tx.ty, TransactionType::Deposit | TransactionType::Withdrawal) {
+        *last_tx_id += 1;
+    }
 
     if let Err(e) = client.process_tx(tx, disputed_tx) {
         eprintln!("Error encountered while processing TxID {}: {}", tx_id, e);

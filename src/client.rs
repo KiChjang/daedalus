@@ -7,7 +7,6 @@ use crate::transaction::{Transaction, TransactionType};
 pub struct Client {
     pub(crate) total: f32,
     pub(crate) locked: bool,
-    pub(crate) nonce: u32,
     disputed_tx: HashMap<u32, Transaction>,
 }
 
@@ -79,8 +78,6 @@ impl Client {
         tx: Transaction,
         disputed_tx: Option<Transaction>,
     ) -> Result<&mut Self, Error> {
-        self.nonce += 1;
-
         match tx.ty {
             TransactionType::Deposit => self.deposit(tx.amount),
             TransactionType::Withdrawal => self.withdraw(tx.amount),
@@ -103,7 +100,6 @@ impl Default for Client {
         Client {
             total: 0.0,
             locked: false,
-            nonce: 0,
             disputed_tx: HashMap::new(),
         }
     }
