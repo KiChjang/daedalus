@@ -28,29 +28,35 @@ fn main() -> csv::Result<()> {
 
     for res in rdr.deserialize() {
         let tx: Transaction = res?;
-        let tx_id = tx.id;
-        let client = clients.entry(tx.client_id).or_default();
-
-        let disputed_tx = if matches!(tx.ty, TransactionType::Dispute) {
-            if tx.id > client.nonce {
-                eprintln!(
-                    "Error encountered while processing TxID {}: Disputing a future transaction",
-                    tx_id,
-                );
-                continue;
-            }
-
-            locate_tx(opt.input.clone(), tx_id)?
-        } else {
-            None
-        };
-
-        if let Err(e) = client.process_tx(tx, disputed_tx) {
-            eprintln!("Error encountered while processing TxID {}: {}", tx_id, e);
-        }
+        process_tx(tx, &mut clients, opt.input.as_path())?;
     }
 
     write_client_statements(io::stdout(), clients)?;
+
+    Ok(())
+}
+
+fn process_tx(tx: Transaction, clients: &mut HashMap<u16, Client>, txs_path: &Path) -> csv::Result<()> {
+    let tx_id = tx.id;
+    let client = clients.entry(tx.client_id).or_default();
+
+    let disputed_tx = if matches!(tx.ty, TransactionType::Dispute) {
+        if tx.id > client.nonce {
+            eprintln!(
+                "Error encountered while processing TxID {}: Disputing a future transaction",
+                tx_id,
+            );
+            return Ok(());
+        }
+
+        locate_tx(txs_path, tx_id)?
+    } else {
+        None
+    };
+
+    if let Err(e) = client.process_tx(tx, disputed_tx) {
+        eprintln!("Error encountered while processing TxID {}: {}", tx_id, e);
+    }
 
     Ok(())
 }
