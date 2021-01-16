@@ -1,6 +1,7 @@
 use std::fmt::{self, Display, Formatter};
 
 #[derive(Debug, PartialEq, Eq)]
+/// Possible errors that may crop up during processing transactions.
 pub enum Error {
     InsufficientBalance,
     AccountLocked,

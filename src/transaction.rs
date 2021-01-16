@@ -1,6 +1,7 @@
 use serde::Deserialize;
 
 #[derive(Clone, Debug, PartialEq, Deserialize)]
+/// Struct representing a transaction. Primarily used during deserialization.
 pub struct Transaction {
     #[serde(rename = "type")]
     pub(crate) ty: TransactionType,
@@ -12,6 +13,7 @@ pub struct Transaction {
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize)]
+/// Enum representing the transaction type for a transaction.
 pub enum TransactionType {
     #[serde(alias = "deposit")]
     Deposit,

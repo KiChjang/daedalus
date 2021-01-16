@@ -4,6 +4,10 @@ use crate::error::Error;
 use crate::transaction::{Transaction, TransactionType};
 
 #[derive(Debug, PartialEq)]
+/// The state of a client. Note that we don't store available or held funds --
+/// both can be derived from the list of transactions that are in dispute. This
+/// ensures that we always have a single source of truth, instead of requiring
+/// us to update redundant fields in this struct.
 pub struct Client {
     pub(crate) total: f32,
     pub(crate) locked: bool,
@@ -11,6 +15,8 @@ pub struct Client {
 }
 
 impl Client {
+    /// Retrieves the amount of funds held by disputes.
+    /// Subtract this amount from the total to get the amount of available funds.
     pub fn get_held(&self) -> f32 {
         self.disputed_tx.values().map(|tx| tx.amount).sum()
     }
@@ -70,6 +76,12 @@ impl Client {
         self
     }
 
+    /// Processes the given transaction for the client. The 2nd argument is
+    /// used only for disputes, and it represents the transaction that is under
+    /// dispute.
+    /// Callers of `process_tx` must ensure that the 2nd argument is a deposit
+    /// or a withdrawal. Any other kind of transaction may result in a panic
+    /// during a chargeback.
     pub fn process_tx(
         &mut self,
         tx: Transaction,

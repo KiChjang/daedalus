@@ -22,8 +22,13 @@ struct CommandOpt {
 
 fn main() -> csv::Result<()> {
     let opt = CommandOpt::from_args();
-    let mut rdr = Reader::from_path(opt.input.clone())?;
+    // csv::Reader is buffered by default, so that the entire input file
+    // doesn't get loaded in memory all at once.
+    let mut rdr = Reader::from_path(opt.input.as_path())?;
 
+    // Client IDs are only relevant here in this HashMap -- the Client
+    // struct itself does not store the ID, thus eliminating redundancy
+    // and saving storage space for Clients.
     let mut clients: HashMap<u16, Client> = HashMap::new();
     let mut last_tx_id = 0;
 
@@ -76,6 +81,10 @@ fn process_tx(
     Ok(())
 }
 
+// Assumption: Disputes rarely happen, so we do not store an entire history of
+// transactions in the client. Instead, whenever there is a dispute, we reopen
+// the list of transactions file and search for the disputed transaction from
+// the beginning.
 fn locate_tx<A: AsRef<Path>>(path: A, tx_id: u32) -> csv::Result<Option<Transaction>> {
     let mut rdr = Reader::from_path(path)?;
 
