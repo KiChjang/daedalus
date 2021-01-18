@@ -21,6 +21,11 @@ impl Client {
         self.disputed_tx.values().map(|tx| tx.amount).sum()
     }
 
+    fn unlock(&mut self) -> &mut Self {
+        self.locked = false;
+        self
+    }
+
     fn deposit(&mut self, amount: f32) -> Result<&mut Self, Error> {
         if self.locked {
             return Err(Error::AccountLocked);
@@ -46,12 +51,24 @@ impl Client {
     }
 
     fn dispute(&mut self, tx: Transaction) -> &mut Self {
+        if matches!(tx.ty, TransactionType::Withdrawal) {
+            // We increase the total here, but the available funds should still remain the same,
+            // which would still make the equation (total = available + held) true.
+            self.total += tx.amount;
+        }
         self.disputed_tx.insert(tx.id, tx);
         self
     }
 
     fn resolve(&mut self, tx_id: u32) -> &mut Self {
-        self.disputed_tx.remove(&tx_id);
+        if let Some(tx) = self.disputed_tx.remove(&tx_id) {
+            if matches!(tx.ty, TransactionType::Withdrawal) {
+                // By removing the disputed withdrawal, we decreased the amount
+                // of held funds, so we must also decrease the total here to
+                // fully reverse the transaction.
+                self.total -= tx.amount;
+            }
+        }
 
         self
     }
@@ -63,7 +80,10 @@ impl Client {
                     self.total -= tx.amount;
                 }
                 TransactionType::Withdrawal => {
-                    self.total += tx.amount;
+                    // Removing the withdrawal transaction from the disputed
+                    // map should increase the available funds while decreasing
+                    // the held funds, keeping the total funds unchanged, so we
+                    // do nothing here
                 }
                 // Impossible to hit since we should have prevented such kinds of transaction types to be added
                 TransactionType::Dispute
@@ -240,17 +260,44 @@ mod tests {
             .unwrap()
             .dispute(tx);
 
-        assert_eq!(client.total, 2.0);
+        let tx2 = Transaction {
+            ty: TransactionType::Withdrawal,
+            client_id: 0,
+            id: 3,
+            amount: 2.0,
+        };
+
+        assert_eq!(client.total, 3.0);
         assert_eq!(client.get_held(), 1.0);
 
-        assert_eq!(client.withdraw(2.0), Err(Error::InsufficientBalance));
+        assert!(client.process_tx(tx2.clone(), None).is_ok());
 
         client.resolve(1);
 
-        assert_eq!(client.total, 2.0);
+        assert_eq!(client.total, 1.0);
         assert_eq!(client.get_held(), 1.0);
 
+        assert_eq!(client.withdraw(1.0), Err(Error::InsufficientBalance));
+
         client.resolve(2);
+
+        assert_eq!(client.total, 0.0);
+        assert_eq!(client.get_held(), 0.0);
+        assert_eq!(client.withdraw(2.0), Err(Error::InsufficientBalance));
+
+        client.dispute(tx2);
+
+        assert_eq!(client.total, 2.0);
+        assert_eq!(client.get_held(), 2.0);
+        assert_eq!(client.withdraw(1.0), Err(Error::InsufficientBalance));
+
+        client.chargeback(3);
+
+        assert_eq!(client.total, 2.0);
+        assert_eq!(client.get_held(), 0.0);
+        assert_eq!(client.withdraw(1.0), Err(Error::AccountLocked));
+
+        client.unlock();
 
         assert_eq!(client.total, 2.0);
         assert_eq!(client.get_held(), 0.0);
