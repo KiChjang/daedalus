@@ -50,17 +50,25 @@ impl Client {
         Ok(self)
     }
 
-    fn dispute(&mut self, tx: Transaction) -> &mut Self {
+    fn dispute(&mut self, tx: Transaction) -> Result<&mut Self, Error> {
+        if self.locked {
+            return Err(Error::AccountLocked);
+        }
+
         if matches!(tx.ty, TransactionType::Withdrawal) {
             // We increase the total here, but the available funds should still remain the same,
             // which would still make the equation (total = available + held) true.
             self.total += tx.amount;
         }
         self.disputed_tx.insert(tx.id, tx);
-        self
+        Ok(self)
     }
 
-    fn resolve(&mut self, tx_id: u32) -> &mut Self {
+    fn resolve(&mut self, tx_id: u32) -> Result<&mut Self, Error> {
+        if self.locked {
+            return Err(Error::AccountLocked);
+        }
+
         if let Some(tx) = self.disputed_tx.remove(&tx_id) {
             if matches!(tx.ty, TransactionType::Withdrawal) {
                 // By removing the disputed withdrawal, we decreased the amount
@@ -70,10 +78,14 @@ impl Client {
             }
         }
 
-        self
+        Ok(self)
     }
 
-    fn chargeback(&mut self, tx_id: u32) -> &mut Self {
+    fn chargeback(&mut self, tx_id: u32) -> Result<&mut Self, Error> {
+        if self.locked {
+            return Err(Error::AccountLocked);
+        }
+
         if let Some(tx) = self.disputed_tx.remove(&tx_id) {
             match tx.ty {
                 TransactionType::Deposit => {
@@ -93,7 +105,7 @@ impl Client {
             self.locked = true;
         }
 
-        self
+        Ok(self)
     }
 
     /// Processes the given transaction for the client. The 2nd argument is
@@ -122,10 +134,10 @@ impl Client {
                     TransactionType::Deposit | TransactionType::Withdrawal
                 ));
 
-                Ok(self.dispute(disputed_tx))
+                self.dispute(disputed_tx)
             }
-            TransactionType::Resolve => Ok(self.resolve(tx.id)),
-            TransactionType::Chargeback => Ok(self.chargeback(tx.id)),
+            TransactionType::Resolve => self.resolve(tx.id),
+            TransactionType::Chargeback => self.chargeback(tx.id),
         }
     }
 }
@@ -166,7 +178,7 @@ mod tests {
             amount: 1.0,
         };
 
-        client.process_tx(tx.clone(), None).unwrap().dispute(tx);
+        let _ = client.process_tx(tx.clone(), None).unwrap().dispute(tx);
 
         assert_eq!(client.withdraw(1.0), Err(Error::InsufficientBalance));
         assert_eq!(client.total, 1.0);
@@ -183,10 +195,11 @@ mod tests {
             amount: 1.0,
         };
 
-        client
+        let _ = client
             .process_tx(tx.clone(), None)
             .unwrap()
             .dispute(tx)
+            .unwrap()
             .resolve(1);
 
         assert!(client.withdraw(1.0).is_ok());
@@ -204,12 +217,13 @@ mod tests {
             amount: 1.0,
         };
 
-        client
+        let _ = client
             .process_tx(tx.clone(), None)
             .unwrap()
             .deposit(2.0)
             .unwrap()
             .dispute(tx)
+            .unwrap()
             .chargeback(1);
 
         assert_eq!(client.withdraw(1.0), Err(Error::AccountLocked));
@@ -228,7 +242,7 @@ mod tests {
             amount: 1.0,
         };
 
-        client
+        let _ = client
             .process_tx(tx.clone(), None)
             .unwrap()
             .deposit(2.0)
@@ -253,7 +267,7 @@ mod tests {
             amount: 1.0,
         };
 
-        client
+        let _ = client
             .deposit(3.0)
             .unwrap()
             .process_tx(tx.clone(), None)
@@ -272,26 +286,26 @@ mod tests {
 
         assert!(client.process_tx(tx2.clone(), None).is_ok());
 
-        client.resolve(1);
+        let _ = client.resolve(1);
 
         assert_eq!(client.total, 1.0);
         assert_eq!(client.get_held(), 1.0);
 
         assert_eq!(client.withdraw(1.0), Err(Error::InsufficientBalance));
 
-        client.resolve(2);
+        let _ = client.resolve(2);
 
         assert_eq!(client.total, 0.0);
         assert_eq!(client.get_held(), 0.0);
         assert_eq!(client.withdraw(2.0), Err(Error::InsufficientBalance));
 
-        client.dispute(tx2);
+        let _ = client.dispute(tx2);
 
         assert_eq!(client.total, 2.0);
         assert_eq!(client.get_held(), 2.0);
         assert_eq!(client.withdraw(1.0), Err(Error::InsufficientBalance));
 
-        client.chargeback(3);
+        let _ = client.chargeback(3);
 
         assert_eq!(client.total, 2.0);
         assert_eq!(client.get_held(), 0.0);
