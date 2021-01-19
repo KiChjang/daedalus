@@ -30,6 +30,8 @@ fn main() -> csv::Result<()> {
     // struct itself does not store the ID, thus eliminating redundancy
     // and saving storage space for Clients.
     let mut clients: HashMap<u16, Client> = HashMap::new();
+    // Assumption: TxIDs are monotonically increasing, so we can track which
+    // transactions happened before the other.
     let mut last_tx_id = 0;
 
     for res in rdr.deserialize() {
