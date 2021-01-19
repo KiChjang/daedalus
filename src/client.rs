@@ -55,6 +55,11 @@ impl Client {
             return Err(Error::AccountLocked);
         }
 
+        // Withdrawal disputes need to be handled differently from deposit disputes,
+        // since a reversal of a withdrawal implies _adding_ available funds, not
+        // subtracting them. Since we're only disputing now, it would not make sense
+        // to increase available funds yet. Instead, we'll keep the available funds
+        // unchanged, and increase both the total and held funds.
         if matches!(tx.ty, TransactionType::Withdrawal) {
             // We increase the total here, but the available funds should still remain the same,
             // which would still make the equation (total = available + held) true.
