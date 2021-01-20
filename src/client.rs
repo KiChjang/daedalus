@@ -18,7 +18,7 @@ impl Client {
     /// Retrieves the amount of funds held by disputes.
     /// Subtract this amount from the total to get the amount of available funds.
     pub fn get_held(&self) -> f32 {
-        self.disputed_tx.values().map(|tx| tx.amount).sum()
+        self.disputed_tx.values().map(|tx| tx.amount.unwrap()).sum()
     }
 
     fn unlock(&mut self) -> &mut Self {
@@ -63,7 +63,7 @@ impl Client {
         if matches!(tx.ty, TransactionType::Withdrawal) {
             // We increase the total here, but the available funds should still remain the same,
             // which would still make the equation (total = available + held) true.
-            self.total += tx.amount;
+            self.total += tx.amount.ok_or(Error::AmountMissing)?;
         }
         self.disputed_tx.insert(tx.id, tx);
         Ok(self)
@@ -79,7 +79,7 @@ impl Client {
                 // By removing the disputed withdrawal, we decreased the amount
                 // of held funds, so we must also decrease the total here to
                 // fully reverse the transaction.
-                self.total -= tx.amount;
+                self.total -= tx.amount.ok_or(Error::AmountMissing)?;
             }
         }
 
@@ -94,7 +94,7 @@ impl Client {
         if let Some(tx) = self.disputed_tx.remove(&tx_id) {
             match tx.ty {
                 TransactionType::Deposit => {
-                    self.total -= tx.amount;
+                    self.total -= tx.amount.ok_or(Error::AmountMissing)?;
                 }
                 TransactionType::Withdrawal => {
                     // Removing the withdrawal transaction from the disputed
@@ -119,14 +119,17 @@ impl Client {
     /// Callers of `process_tx` must ensure that the 2nd argument is a deposit
     /// or a withdrawal. Any other kind of transaction may result in a panic
     /// during a chargeback.
+    /// Callers must also ensure that any deposit or withdrawal transaction
+    /// contain an amount field. Failing this requirement would result in the
+    /// transaction being ignored.
     pub fn process_tx(
         &mut self,
         tx: Transaction,
         disputed_tx: Option<Transaction>,
     ) -> Result<&mut Self, Error> {
         match tx.ty {
-            TransactionType::Deposit => self.deposit(tx.amount),
-            TransactionType::Withdrawal => self.withdraw(tx.amount),
+            TransactionType::Deposit => self.deposit(tx.amount.ok_or(Error::AmountMissing)?),
+            TransactionType::Withdrawal => self.withdraw(tx.amount.ok_or(Error::AmountMissing)?),
             TransactionType::Dispute => {
                 let disputed_tx = match disputed_tx {
                     Some(t) => t,
@@ -180,7 +183,7 @@ mod tests {
             ty: TransactionType::Deposit,
             client_id: 0,
             id: 1,
-            amount: 1.0,
+            amount: Some(1.0),
         };
 
         let _ = client.process_tx(tx.clone(), None).unwrap().dispute(tx);
@@ -197,7 +200,7 @@ mod tests {
             ty: TransactionType::Deposit,
             client_id: 0,
             id: 1,
-            amount: 1.0,
+            amount: Some(1.0),
         };
 
         let _ = client
@@ -219,7 +222,7 @@ mod tests {
             ty: TransactionType::Deposit,
             client_id: 0,
             id: 1,
-            amount: 1.0,
+            amount: Some(1.0),
         };
 
         let _ = client
@@ -244,7 +247,7 @@ mod tests {
             ty: TransactionType::Deposit,
             client_id: 0,
             id: 1,
-            amount: 1.0,
+            amount: Some(1.0),
         };
 
         let _ = client
@@ -269,7 +272,7 @@ mod tests {
             ty: TransactionType::Withdrawal,
             client_id: 0,
             id: 2,
-            amount: 1.0,
+            amount: Some(1.0),
         };
 
         let _ = client
@@ -283,7 +286,7 @@ mod tests {
             ty: TransactionType::Withdrawal,
             client_id: 0,
             id: 3,
-            amount: 2.0,
+            amount: Some(2.0),
         };
 
         assert_eq!(client.total, 3.0);

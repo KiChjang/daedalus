@@ -1,4 +1,4 @@
-use csv::{Reader, Writer};
+use csv::{ReaderBuilder, Writer};
 use serde::Serialize;
 use std::{
     collections::HashMap,
@@ -24,7 +24,11 @@ fn main() -> csv::Result<()> {
     let opt = CommandOpt::from_args();
     // csv::Reader is buffered by default, so that the entire input file
     // doesn't get loaded in memory all at once.
-    let mut rdr = Reader::from_path(opt.input.as_path())?;
+    let mut rdr = ReaderBuilder::new()
+        // Disputes, resolves and chargebacks may omit the amount column,
+        // enable flexible here to allow amount omission.
+        .flexible(true)
+        .from_path(opt.input.as_path())?;
 
     // Client IDs are only relevant here in this HashMap -- the Client
     // struct itself does not store the ID, thus eliminating redundancy
@@ -35,13 +39,10 @@ fn main() -> csv::Result<()> {
     let mut last_tx_id = 0;
 
     for res in rdr.deserialize() {
-        let tx: Transaction = res?;
-        process_tx(tx, &mut last_tx_id, &mut clients, opt.input.as_path())?;
+        process_tx(res?, &mut last_tx_id, &mut clients, opt.input.as_path())?;
     }
 
-    write_client_statements(io::stdout(), clients)?;
-
-    Ok(())
+    write_client_statements(io::stdout(), clients)
 }
 
 fn process_tx<A: AsRef<Path>>(
@@ -88,7 +89,7 @@ fn process_tx<A: AsRef<Path>>(
 // the list of transactions file and search for the disputed transaction from
 // the beginning.
 fn locate_tx<A: AsRef<Path>>(path: A, tx_id: u32) -> csv::Result<Option<Transaction>> {
-    let mut rdr = Reader::from_path(path)?;
+    let mut rdr = ReaderBuilder::new().flexible(true).from_path(path)?;
 
     for res in rdr.deserialize() {
         let tx: Transaction = res?;

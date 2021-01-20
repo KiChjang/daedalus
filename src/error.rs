@@ -5,6 +5,7 @@ use std::fmt::{self, Display, Formatter};
 pub enum Error {
     InsufficientBalance,
     AccountLocked,
+    AmountMissing,
 }
 
 impl Display for Error {
@@ -15,6 +16,7 @@ impl Display for Error {
             match self {
                 Error::InsufficientBalance => "Insufficient balance for withdrawal",
                 Error::AccountLocked => "Account is frozen",
+                Error::AmountMissing => "No amount specified",
             }
         )
     }
