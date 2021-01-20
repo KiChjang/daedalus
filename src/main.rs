@@ -18,6 +18,9 @@ pub mod transaction;
 #[structopt(about = "Payments engine")]
 struct CommandOpt {
     input: PathBuf,
+    /// Only display clients with a locked status
+    #[structopt(long)]
+    locked: bool,
 }
 
 fn main() -> csv::Result<()> {
@@ -42,7 +45,7 @@ fn main() -> csv::Result<()> {
         process_tx(res?, &mut last_tx_id, &mut clients, opt.input.as_path())?;
     }
 
-    write_client_statements(io::stdout(), clients)
+    write_client_statements(io::stdout(), clients, opt.locked)
 }
 
 fn process_tx<A: AsRef<Path>>(
@@ -89,9 +92,7 @@ fn process_tx<A: AsRef<Path>>(
 // the list of transactions file and search for the disputed transaction from
 // the beginning.
 fn locate_tx<A: AsRef<Path>>(path: A, tx_id: u32) -> csv::Result<Option<Transaction>> {
-    let mut rdr = ReaderBuilder::new()
-        .flexible(true)
-        .from_path(path)?;
+    let mut rdr = ReaderBuilder::new().flexible(true).from_path(path)?;
 
     for res in rdr.deserialize() {
         let tx: Transaction = res?;
@@ -110,7 +111,11 @@ fn locate_tx<A: AsRef<Path>>(path: A, tx_id: u32) -> csv::Result<Option<Transact
     Ok(None)
 }
 
-fn write_client_statements<W: Write>(output: W, clients: HashMap<u16, Client>) -> csv::Result<()> {
+fn write_client_statements<W: Write>(
+    output: W,
+    clients: HashMap<u16, Client>,
+    only_locked: bool,
+) -> csv::Result<()> {
     #[derive(Serialize)]
     struct Row {
         client: u16,
@@ -123,6 +128,10 @@ fn write_client_statements<W: Write>(output: W, clients: HashMap<u16, Client>) -
     let mut wtr = Writer::from_writer(output);
 
     for (id, client) in clients {
+        if only_locked && !client.locked {
+            continue;
+        }
+
         let held = client.get_held();
         wtr.serialize(Row {
             client: id,
