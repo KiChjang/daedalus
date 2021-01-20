@@ -89,7 +89,9 @@ fn process_tx<A: AsRef<Path>>(
 // the list of transactions file and search for the disputed transaction from
 // the beginning.
 fn locate_tx<A: AsRef<Path>>(path: A, tx_id: u32) -> csv::Result<Option<Transaction>> {
-    let mut rdr = ReaderBuilder::new().flexible(true).from_path(path)?;
+    let mut rdr = ReaderBuilder::new()
+        .flexible(true)
+        .from_path(path)?;
 
     for res in rdr.deserialize() {
         let tx: Transaction = res?;

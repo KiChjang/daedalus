@@ -26,13 +26,9 @@ impl Client {
         self
     }
 
-    fn deposit(&mut self, amount: f32) -> Result<&mut Self, Error> {
-        if self.locked {
-            return Err(Error::AccountLocked);
-        }
-
+    fn deposit(&mut self, amount: f32) -> &mut Self {
         self.total += amount;
-        Ok(self)
+        self
     }
 
     fn withdraw(&mut self, amount: f32) -> Result<&mut Self, Error> {
@@ -51,10 +47,6 @@ impl Client {
     }
 
     fn dispute(&mut self, tx: Transaction) -> Result<&mut Self, Error> {
-        if self.locked {
-            return Err(Error::AccountLocked);
-        }
-
         // Withdrawal disputes need to be handled differently from deposit disputes,
         // since a reversal of a withdrawal implies _adding_ available funds, not
         // subtracting them. Since we're only disputing now, it would not make sense
@@ -70,10 +62,6 @@ impl Client {
     }
 
     fn resolve(&mut self, tx_id: u32) -> Result<&mut Self, Error> {
-        if self.locked {
-            return Err(Error::AccountLocked);
-        }
-
         if let Some(tx) = self.disputed_tx.remove(&tx_id) {
             if matches!(tx.ty, TransactionType::Withdrawal) {
                 // By removing the disputed withdrawal, we decreased the amount
@@ -87,10 +75,6 @@ impl Client {
     }
 
     fn chargeback(&mut self, tx_id: u32) -> Result<&mut Self, Error> {
-        if self.locked {
-            return Err(Error::AccountLocked);
-        }
-
         if let Some(tx) = self.disputed_tx.remove(&tx_id) {
             match tx.ty {
                 TransactionType::Deposit => {
@@ -128,7 +112,7 @@ impl Client {
         disputed_tx: Option<Transaction>,
     ) -> Result<&mut Self, Error> {
         match tx.ty {
-            TransactionType::Deposit => self.deposit(tx.amount.ok_or(Error::AmountMissing)?),
+            TransactionType::Deposit => Ok(self.deposit(tx.amount.ok_or(Error::AmountMissing)?)),
             TransactionType::Withdrawal => self.withdraw(tx.amount.ok_or(Error::AmountMissing)?),
             TransactionType::Dispute => {
                 let disputed_tx = match disputed_tx {
@@ -169,8 +153,8 @@ mod tests {
     #[test]
     fn test_deposit_and_withdrawal() {
         let mut client = Client::default();
+        client.deposit(1.0);
 
-        assert!(client.deposit(1.0).is_ok());
         assert!(client.withdraw(0.5).is_ok());
         assert!(client.withdraw(0.5).is_ok());
         assert_eq!(client.withdraw(0.5), Err(Error::InsufficientBalance));
@@ -229,7 +213,6 @@ mod tests {
             .process_tx(tx.clone(), None)
             .unwrap()
             .deposit(2.0)
-            .unwrap()
             .dispute(tx)
             .unwrap()
             .chargeback(1);
@@ -254,7 +237,6 @@ mod tests {
             .process_tx(tx.clone(), None)
             .unwrap()
             .deposit(2.0)
-            .unwrap()
             .dispute(tx);
 
         assert_eq!(client.total, 3.0);
@@ -277,7 +259,6 @@ mod tests {
 
         let _ = client
             .deposit(3.0)
-            .unwrap()
             .process_tx(tx.clone(), None)
             .unwrap()
             .dispute(tx);
