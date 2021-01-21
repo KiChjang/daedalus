@@ -1,5 +1,5 @@
 use csv::{ReaderBuilder, Writer};
-use serde::Serialize;
+use serde::{Serialize, Serializer};
 use std::{
     collections::HashMap,
     io::{self, Write},
@@ -119,8 +119,11 @@ fn write_client_statements<W: Write>(
     #[derive(Serialize)]
     struct Row {
         client: u16,
+        #[serde(serialize_with = "serialize_amount")]
         available: f32,
+        #[serde(serialize_with = "serialize_amount")]
         held: f32,
+        #[serde(serialize_with = "serialize_amount")]
         total: f32,
         locked: bool,
     }
@@ -143,4 +146,12 @@ fn write_client_statements<W: Write>(
     }
 
     Ok(())
+}
+
+fn serialize_amount<S>(data: &f32, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let trunc = (*data * 10_000.0).trunc() / 10_000.0;
+    serializer.serialize_f32(trunc)
 }
