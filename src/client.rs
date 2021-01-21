@@ -161,7 +161,7 @@ mod tests {
     }
 
     #[test]
-    fn test_should_disallow_withdraw_when_avail_funds_is_insufficient() {
+    fn test_should_disallow_withdraw_when_avail_funds_is_insufficient() -> Result<(), Error> {
         let mut client = Client::default();
         let tx = Transaction {
             ty: TransactionType::Deposit,
@@ -170,15 +170,17 @@ mod tests {
             amount: Some(1.0),
         };
 
-        let _ = client.process_tx(tx.clone(), None).unwrap().dispute(tx);
+        client.process_tx(tx.clone(), None)?.dispute(tx)?;
 
         assert_eq!(client.withdraw(1.0), Err(Error::InsufficientBalance));
         assert_eq!(client.total, 1.0);
         assert_eq!(client.get_held(), 1.0);
+
+        Ok(())
     }
 
     #[test]
-    fn test_should_allow_withdraw_when_dispute_is_resolved() {
+    fn test_should_allow_withdraw_when_dispute_is_resolved() -> Result<(), Error> {
         let mut client = Client::default();
         let tx = Transaction {
             ty: TransactionType::Deposit,
@@ -187,20 +189,20 @@ mod tests {
             amount: Some(1.0),
         };
 
-        let _ = client
-            .process_tx(tx.clone(), None)
-            .unwrap()
-            .dispute(tx)
-            .unwrap()
-            .resolve(1);
+        client
+            .process_tx(tx.clone(), None)?
+            .dispute(tx)?
+            .resolve(1)?;
 
         assert!(client.withdraw(1.0).is_ok());
         assert_eq!(client.total, 0.0);
         assert_eq!(client.get_held(), 0.0);
+
+        Ok(())
     }
 
     #[test]
-    fn test_should_disallow_withdrawal_after_chargeback() {
+    fn test_should_disallow_withdrawal_after_chargeback() -> Result<(), Error> {
         let mut client = Client::default();
         let tx = Transaction {
             ty: TransactionType::Deposit,
@@ -209,22 +211,22 @@ mod tests {
             amount: Some(1.0),
         };
 
-        let _ = client
-            .process_tx(tx.clone(), None)
-            .unwrap()
+        client
+            .process_tx(tx.clone(), None)?
             .deposit(2.0)
-            .dispute(tx)
-            .unwrap()
-            .chargeback(1);
+            .dispute(tx)?
+            .chargeback(1)?;
 
         assert_eq!(client.withdraw(1.0), Err(Error::AccountLocked));
         assert_eq!(client.withdraw(5.0), Err(Error::AccountLocked));
         assert_eq!(client.total, 2.0);
         assert_eq!(client.get_held(), 0.0);
+
+        Ok(())
     }
 
     #[test]
-    fn test_should_allow_withdrawal_under_dispute_if_avail_funds_exist() {
+    fn test_should_allow_withdrawal_under_dispute_if_avail_funds_exist() -> Result<(), Error> {
         let mut client = Client::default();
         let tx = Transaction {
             ty: TransactionType::Deposit,
@@ -233,11 +235,10 @@ mod tests {
             amount: Some(1.0),
         };
 
-        let _ = client
-            .process_tx(tx.clone(), None)
-            .unwrap()
+        client
+            .process_tx(tx.clone(), None)?
             .deposit(2.0)
-            .dispute(tx);
+            .dispute(tx)?;
 
         assert_eq!(client.total, 3.0);
         assert_eq!(client.get_held(), 1.0);
@@ -245,10 +246,12 @@ mod tests {
         assert!(client.withdraw(2.0).is_ok());
         assert_eq!(client.total, 1.0);
         assert_eq!(client.get_held(), 1.0);
+
+        Ok(())
     }
 
     #[test]
-    fn test_dispute_withdrawal() {
+    fn test_dispute_withdrawal() -> Result<(), Error> {
         let mut client = Client::default();
         let tx = Transaction {
             ty: TransactionType::Withdrawal,
@@ -257,11 +260,10 @@ mod tests {
             amount: Some(1.0),
         };
 
-        let _ = client
+        client
             .deposit(3.0)
-            .process_tx(tx.clone(), None)
-            .unwrap()
-            .dispute(tx);
+            .process_tx(tx.clone(), None)?
+            .dispute(tx)?;
 
         let tx2 = Transaction {
             ty: TransactionType::Withdrawal,
@@ -275,26 +277,26 @@ mod tests {
 
         assert!(client.process_tx(tx2.clone(), None).is_ok());
 
-        let _ = client.resolve(1);
+        client.resolve(1)?;
 
         assert_eq!(client.total, 1.0);
         assert_eq!(client.get_held(), 1.0);
 
         assert_eq!(client.withdraw(1.0), Err(Error::InsufficientBalance));
 
-        let _ = client.resolve(2);
+        client.resolve(2)?;
 
         assert_eq!(client.total, 0.0);
         assert_eq!(client.get_held(), 0.0);
         assert_eq!(client.withdraw(2.0), Err(Error::InsufficientBalance));
 
-        let _ = client.dispute(tx2);
+        client.dispute(tx2)?;
 
         assert_eq!(client.total, 2.0);
         assert_eq!(client.get_held(), 2.0);
         assert_eq!(client.withdraw(1.0), Err(Error::InsufficientBalance));
 
-        let _ = client.chargeback(3);
+        client.chargeback(3)?;
 
         assert_eq!(client.total, 2.0);
         assert_eq!(client.get_held(), 0.0);
@@ -305,5 +307,7 @@ mod tests {
         assert_eq!(client.total, 2.0);
         assert_eq!(client.get_held(), 0.0);
         assert!(client.withdraw(2.0).is_ok());
+
+        Ok(())
     }
 }
