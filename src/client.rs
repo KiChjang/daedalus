@@ -106,6 +106,10 @@ impl Client {
     /// Callers must also ensure that any deposit or withdrawal transaction
     /// contain an amount field. Failing this requirement would result in the
     /// transaction being ignored.
+    /// There are 3 kinds of errors that can result from this function:
+    /// 1. Withdrawing while there is not available balance;
+    /// 2. Withdrawing while the account is locked;
+    /// 3. Deposit and withdrawal transactions have their amount field missing.
     pub fn process_tx(
         &mut self,
         tx: Transaction,
