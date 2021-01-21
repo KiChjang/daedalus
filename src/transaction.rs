@@ -37,7 +37,7 @@ mod tests {
     use csv::ReaderBuilder;
 
     #[test]
-    fn test_deserialize_deposit() {
+    fn test_deserialize_deposit() -> csv::Result<()> {
         let data = "\
 type,client,tx,amount\n
 deposit,1,1,2.0";
@@ -46,17 +46,19 @@ deposit,1,1,2.0";
             .flexible(true)
             .from_reader(data.as_bytes());
 
-        for res in rdr.deserialize::<Transaction>() {
-            let tx = res.unwrap();
+        for res in rdr.deserialize() {
+            let tx: Transaction = res?;
             assert_eq!(tx.ty, TransactionType::Deposit);
             assert_eq!(tx.client_id, 1);
             assert_eq!(tx.id, 1);
             assert_eq!(tx.amount, Some(2.0));
         }
+
+        Ok(())
     }
 
     #[test]
-    fn test_deserialize_withdrawal() {
+    fn test_deserialize_withdrawal() -> csv::Result<()> {
         let data = "\
 type,client,tx,amount\n
 withdrawal,1,1,2.0";
@@ -65,17 +67,19 @@ withdrawal,1,1,2.0";
             .flexible(true)
             .from_reader(data.as_bytes());
 
-        for res in rdr.deserialize::<Transaction>() {
-            let tx = res.unwrap();
+        for res in rdr.deserialize() {
+            let tx: Transaction = res?;
             assert_eq!(tx.ty, TransactionType::Withdrawal);
             assert_eq!(tx.client_id, 1);
             assert_eq!(tx.id, 1);
             assert_eq!(tx.amount, Some(2.0));
         }
+
+        Ok(())
     }
 
     #[test]
-    fn test_deserialize_dispute() {
+    fn test_deserialize_dispute() -> csv::Result<()> {
         let data = "\
 type,client,tx,amount\n
 dispute,1,1";
@@ -84,17 +88,19 @@ dispute,1,1";
             .flexible(true)
             .from_reader(data.as_bytes());
 
-        for res in rdr.deserialize::<Transaction>() {
-            let tx = res.unwrap();
+        for res in rdr.deserialize() {
+            let tx: Transaction = res?;
             assert_eq!(tx.ty, TransactionType::Dispute);
             assert_eq!(tx.client_id, 1);
             assert_eq!(tx.id, 1);
             assert_eq!(tx.amount, None);
         }
+
+        Ok(())
     }
 
     #[test]
-    fn test_deserialize_resolve() {
+    fn test_deserialize_resolve() -> csv::Result<()> {
         let data = "\
 type,client,tx,amount\n
 resolve,1,1";
@@ -103,17 +109,19 @@ resolve,1,1";
             .flexible(true)
             .from_reader(data.as_bytes());
 
-        for res in rdr.deserialize::<Transaction>() {
-            let tx = res.unwrap();
+        for res in rdr.deserialize() {
+            let tx: Transaction = res?;
             assert_eq!(tx.ty, TransactionType::Resolve);
             assert_eq!(tx.client_id, 1);
             assert_eq!(tx.id, 1);
             assert_eq!(tx.amount, None);
         }
+
+        Ok(())
     }
 
     #[test]
-    fn test_deserialize_chargeback() {
+    fn test_deserialize_chargeback() -> csv::Result<()> {
         let data = "\
 type,client,tx,amount\n
 chargeback,1,1";
@@ -122,12 +130,14 @@ chargeback,1,1";
             .flexible(true)
             .from_reader(data.as_bytes());
 
-        for res in rdr.deserialize::<Transaction>() {
-            let tx = res.unwrap();
+        for res in rdr.deserialize() {
+            let tx: Transaction = res?;
             assert_eq!(tx.ty, TransactionType::Chargeback);
             assert_eq!(tx.client_id, 1);
             assert_eq!(tx.id, 1);
             assert_eq!(tx.amount, None);
         }
+
+        Ok(())
     }
 }

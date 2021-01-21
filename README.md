@@ -18,7 +18,7 @@ cargo run -- transaction.csv
 cargo test
 ```
 
-`transaction.rs` contains unit tests for deserializing transactions. Each transaction type has its own unit test for deserialization.
+`transaction.rs` contains unit tests for deserializing transactions. Each transaction type has its own unit test for deserialization. The unit test functions all return a `csv::Result<()>` so that if anything was amiss with the deserialization process, we would get a helpful error message on what went wrong while running the unit tests.
 
 `client.rs` contains unit tests for account actions performed on the client. The unit tests so far deal with the following cases:
 
