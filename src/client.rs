@@ -21,11 +21,6 @@ impl Client {
         self.disputed_tx.values().map(|tx| tx.amount.unwrap()).sum()
     }
 
-    fn unlock(&mut self) -> &mut Self {
-        self.locked = false;
-        self
-    }
-
     fn deposit(&mut self, amount: f32) -> &mut Self {
         self.total += amount;
         self
@@ -307,7 +302,7 @@ mod tests {
         assert_eq!(client.get_held(), 0.0);
         assert_eq!(client.withdraw(1.0), Err(Error::AccountLocked));
 
-        client.unlock();
+        client.locked = false;
 
         assert_eq!(client.total, 2.0);
         assert_eq!(client.get_held(), 0.0);
