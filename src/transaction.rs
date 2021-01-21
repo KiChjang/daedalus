@@ -37,7 +37,7 @@ mod tests {
     use csv::ReaderBuilder;
 
     #[test]
-    fn test_parse_deposit() {
+    fn test_deserialize_deposit() {
         let data = "\
 type,client,tx,amount\n
 deposit,1,1,2.0";
@@ -56,7 +56,7 @@ deposit,1,1,2.0";
     }
 
     #[test]
-    fn test_parse_withdrawal() {
+    fn test_deserialize_withdrawal() {
         let data = "\
 type,client,tx,amount\n
 withdrawal,1,1,2.0";
@@ -75,7 +75,7 @@ withdrawal,1,1,2.0";
     }
 
     #[test]
-    fn test_parse_dispute() {
+    fn test_deserialize_dispute() {
         let data = "\
 type,client,tx,amount\n
 dispute,1,1";
@@ -94,7 +94,7 @@ dispute,1,1";
     }
 
     #[test]
-    fn test_parse_resolve() {
+    fn test_deserialize_resolve() {
         let data = "\
 type,client,tx,amount\n
 resolve,1,1";
@@ -113,7 +113,7 @@ resolve,1,1";
     }
 
     #[test]
-    fn test_parse_chargeback() {
+    fn test_deserialize_chargeback() {
         let data = "\
 type,client,tx,amount\n
 chargeback,1,1";
