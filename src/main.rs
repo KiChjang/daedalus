@@ -116,6 +116,15 @@ fn write_client_statements<W: Write>(
     clients: HashMap<u16, Client>,
     only_locked: bool,
 ) -> csv::Result<()> {
+    fn serialize_amount<S>(data: &f32, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        const PRECISION: i32 = 4;
+        let trunc = (*data * 10.0f32.powi(PRECISION)).trunc() / 10.0f32.powi(PRECISION);
+        serializer.serialize_f32(trunc)
+    }
+
     #[derive(Serialize)]
     struct Row {
         client: u16,
@@ -146,12 +155,4 @@ fn write_client_statements<W: Write>(
     }
 
     Ok(())
-}
-
-fn serialize_amount<S>(data: &f32, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    let trunc = (*data * 10_000.0).trunc() / 10_000.0;
-    serializer.serialize_f32(trunc)
 }
