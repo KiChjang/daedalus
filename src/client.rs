@@ -125,6 +125,7 @@ impl Client {
                 };
 
                 debug_assert_eq!(disputed_tx.client_id, tx.client_id);
+                debug_assert_eq!(disputed_tx.id, tx.id);
                 debug_assert!(matches!(
                     disputed_tx.ty,
                     TransactionType::Deposit | TransactionType::Withdrawal
